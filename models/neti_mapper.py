@@ -21,8 +21,11 @@ class NeTIMapper(nn.Module):
                  use_positional_encoding: bool = True,
                  num_pe_time_anchors: int = 10,
                  pe_sigmas: PESigmas = PESigmas(sigma_t=0.03, sigma_l=2.0),
-                 output_bypass: bool = True):
+                 output_bypass: bool = True,
+                 learn_2_concepts: bool = True):
         super().__init__()
+        self.cocept_id = 0
+        self.learn_2_concepts = learn_2_concepts
         self.use_nested_dropout = use_nested_dropout
         self.nested_dropout_prob = nested_dropout_prob
         self.norm_scale = norm_scale
@@ -51,8 +54,12 @@ class NeTIMapper(nn.Module):
 
     def set_input_layer(self, num_unet_layers: int, num_time_anchors: int) -> nn.Module:
         if self.use_positional_encoding:
-            input_layer = nn.Linear(self.encoder.num_w * 2, self.input_dim)
-            input_layer.weight.data = self.encoder.init_layer(num_time_anchors, num_unet_layers)
+            dim_extender = 1 if self.learn_2_concepts else 0
+            input_layer = nn.Linear(self.encoder.num_w * 2 + dim_extender, self.input_dim)
+            # input_layer.weight.data = self.encoder.init_layer(num_time_anchors, num_unet_layers)   
+            # if self.learn_2_concepts:
+            #     extra_column = torch.zeros((input_layer.weight.data.size(0), 1), device=input_layer.weight.data.device)
+            #     input_layer.weight.data = torch.cat((input_layer.weight.data, extra_column), dim=1)
         else:
             input_layer = nn.Identity()
         return input_layer
@@ -65,7 +72,13 @@ class NeTIMapper(nn.Module):
         return embedding
 
     def get_encoded_input(self, timestep: torch.Tensor, unet_layer: torch.Tensor) -> torch.Tensor:
-        return self.encoder.encode(timestep, unet_layer)
+        encoded_input = self.encoder.encode(timestep, unet_layer)
+        if self.learn_2_concepts:
+            concept_tensor = torch.tensor([[self.cocept_id] for _ in range(encoded_input.size(0))], device=encoded_input.device)
+            encoded_input = torch.cat((encoded_input, concept_tensor), dim=1)
+            self.cocept_id = 1 if self.cocept_id == 0 else 0
+            # print("concept_id_switch: ", self.cocept_id)
+        return encoded_input
 
     def extract_hidden_representation(self, timestep: torch.Tensor, unet_layer: torch.Tensor) -> torch.Tensor:
         encoded_input = self.get_encoded_input(timestep, unet_layer)
