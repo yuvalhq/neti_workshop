@@ -76,7 +76,9 @@ class InferenceConfig:
 
 @pyrallis.wrap()
 def main(infer_cfg: InferenceConfig):
-    train_cfg, mapper = CheckpointHandler.load_mapper(infer_cfg.mapper_checkpoint_path)
+    learn_2_concepts = (constants.CONCEPT_ZERO_PLACEHOLDER in infer_cfg.prompts[0] or
+                        constants.CONCEPT_ONE_PLACEHOLDER in infer_cfg.prompts[0])
+    train_cfg, mapper = CheckpointHandler.load_mapper(infer_cfg.mapper_checkpoint_path, learn_2_concepts)
     pipeline, placeholder_token, placeholder_token_id = load_stable_diffusion_model(
         pretrained_model_name_or_path=train_cfg.model.pretrained_model_name_or_path,
         mapper=mapper,
