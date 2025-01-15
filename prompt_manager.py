@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 import torch
 from tqdm import tqdm
@@ -33,6 +33,13 @@ class PromptManager:
         Compute the conditioning vectors for the given prompt. We assume that the prompt is defined using `{}`
         for indicating where to place the placeholder token string. See constants.VALIDATION_PROMPTS for examples.
         """
+        concept_id = 0
+        if constants.CONCEPT_ZERO_PLACEHOLDER in text:
+            text.replace(constants.CONCEPT_ZERO_PLACEHOLDER, "{}")
+        else:
+            text.replace(constants.CONCEPT_ONE_PLACEHOLDER, "{}")
+            concept_id = 1
+            
         text = text.format(self.placeholder_token)
         ids = self.tokenizer(
             text,
@@ -52,7 +59,7 @@ class PromptManager:
                                   unet_layers=torch.tensor(layer_idx, device=self.text_encoder.device).unsqueeze(0),
                                   placeholder_token_id=self.placeholder_token_id,
                                   truncation_idx=truncation_idx)
-                layer_hs, layer_hs_bypass = self.text_encoder(batch=batch)
+                layer_hs, layer_hs_bypass = self.text_encoder(batch=batch, concept_id=concept_id)
                 layer_hs = layer_hs[0].to(dtype=self.dtype)
                 _hs[f"CONTEXT_TENSOR_{layer_idx}"] = layer_hs.repeat(num_images_per_prompt, 1, 1)
                 if layer_hs_bypass is not None:

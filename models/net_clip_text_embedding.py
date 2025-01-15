@@ -21,10 +21,12 @@ class NeTICLIPTextEmbeddings(nn.Module):
     def set_mapper(self, mapper: NeTIMapper):
         self.mapper = mapper
 
-    def forward(self, input_ids: Optional[torch.LongTensor] = None,
+    def forward(self,
+                input_ids: Optional[torch.LongTensor] = None,
                 position_ids: Optional[torch.LongTensor] = None,
                 inputs_embeds: Optional[torch.FloatTensor] = None,
-                batch: Optional[NeTIBatch] = None) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
+                batch: Optional[NeTIBatch] = None,
+                concept_id: int = None) -> Tuple[torch.Tensor, Optional[torch.Tensor]]:
 
         if batch is not None:
             input_ids = batch.input_ids
@@ -44,7 +46,8 @@ class NeTICLIPTextEmbeddings(nn.Module):
         if batch is not None:
             mapper_outputs = self.mapper(timestep=batch.timesteps.float(),
                                          unet_layer=batch.unet_layers.float(),
-                                         truncation_idx=batch.truncation_idx)
+                                         truncation_idx=batch.truncation_idx,
+                                         concept_id=concept_id)
             mapper_outputs = mapper_outputs.to(dtype=inputs_embeds.dtype, device=inputs_embeds.device)
             if self.mapper.output_bypass:
                 bypass_outputs = mapper_outputs[:, mapper_outputs.shape[1] // 2:]

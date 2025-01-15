@@ -24,7 +24,6 @@ class NeTIMapper(nn.Module):
                  output_bypass: bool = True,
                  learn_2_concepts: bool = True):
         super().__init__()
-        self.cocept_id = 0
         self.learn_2_concepts = learn_2_concepts
         self.use_nested_dropout = use_nested_dropout
         self.nested_dropout_prob = nested_dropout_prob
@@ -71,13 +70,11 @@ class NeTIMapper(nn.Module):
         embedding = self.get_output(embedding)
         return embedding
 
-    def get_encoded_input(self, timestep: torch.Tensor, unet_layer: torch.Tensor) -> torch.Tensor:
+    def get_encoded_input(self, timestep: torch.Tensor, unet_layer: torch.Tensor, cocept_id: int) -> torch.Tensor:
         encoded_input = self.encoder.encode(timestep, unet_layer)
         if self.learn_2_concepts:
-            concept_tensor = torch.tensor([[self.cocept_id] for _ in range(encoded_input.size(0))], device=encoded_input.device)
+            concept_tensor = torch.tensor([[cocept_id] for _ in range(encoded_input.size(0))], device=encoded_input.device)
             encoded_input = torch.cat((encoded_input, concept_tensor), dim=1)
-            self.cocept_id = 1 if self.cocept_id == 0 else 0
-            # print("concept_id_switch: ", self.cocept_id)
         return encoded_input
 
     def extract_hidden_representation(self, timestep: torch.Tensor, unet_layer: torch.Tensor) -> torch.Tensor:

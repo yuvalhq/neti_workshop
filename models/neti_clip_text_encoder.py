@@ -25,7 +25,8 @@ class NeTICLIPTextModel(CLIPTextModel):
                 output_attentions: Optional[bool] = None,
                 output_hidden_states: Optional[bool] = None,
                 return_dict: Optional[bool] = None,
-                batch: Optional[NeTIBatch] = None) -> Union[Tuple, BaseModelOutputWithPooling]:
+                batch: Optional[NeTIBatch] = None,
+                concept_id: int = None) -> Union[Tuple, BaseModelOutputWithPooling]:
         return self.text_model.forward(
             batch=batch,
             input_ids=input_ids,
@@ -34,6 +35,7 @@ class NeTICLIPTextModel(CLIPTextModel):
             output_attentions=output_attentions,
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
+            concept_id=concept_id
         )
 
 
@@ -54,7 +56,8 @@ class NeTICLIPTextTransformer(CLIPTextTransformer):
                 output_attentions: Optional[bool] = None,
                 output_hidden_states: Optional[bool] = None,
                 return_dict: Optional[bool] = None,
-                batch: Optional[NeTIBatch] = None) -> Union[Tuple, BaseModelOutputWithPooling]:
+                batch: Optional[NeTIBatch] = None,
+                concept_id: int = None) -> Union[Tuple, BaseModelOutputWithPooling]:
 
         output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
         output_hidden_states = (
@@ -67,7 +70,7 @@ class NeTICLIPTextTransformer(CLIPTextTransformer):
         if input_ids is not None:  # Regular embedding logic
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
-            hidden_states, _ = self.embeddings(input_ids=input_ids, position_ids=position_ids)
+            hidden_states, _ = self.embeddings(input_ids=input_ids, position_ids=position_ids, concept_id=concept_id)
 
         ###########################
         # NeTI logic

@@ -81,3 +81,6 @@ IMAGENET_STYLE_TEMPLATES_SMALL = [
     "a weird painting in the style of {}",
     "a large painting in the style of {}",
 ]
+
+CONCEPT_ZERO_PLACEHOLDER = "{0}"
+CONCEPT_ONE_PLACEHOLDER = "{1}"
