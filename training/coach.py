@@ -107,13 +107,11 @@ class Coach:
             for step, (batch1, batch2) in enumerate(zip(self.train_dataloader_1, self.train_dataloader_2)):
 
                 for i in range(2):
+                    batch = batch1 if i == 0 else batch2
                     with self.accelerator.accumulate(self.text_encoder):
 
                         # Convert images to latent space
-                        if i % 2 == 0:
-                            latent_batch = batch1["pixel_values"].to(dtype=self.weight_dtype)
-                        else:
-                            latent_batch = batch2["pixel_values"].to(dtype=self.weight_dtype)
+                        latent_batch = batch["pixel_values"].to(dtype=self.weight_dtype)
                         latents = self.vae.encode(latent_batch).latent_dist.sample().detach()
                         latents = latents * self.vae.config.scaling_factor
 
@@ -128,16 +126,10 @@ class Coach:
                         noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
 
                         # Get the text embedding for conditioning
-                        if i % 2 == 0:
-                            _hs = self.get_text_conditioning(input_ids=batch1['input_ids'],
-                                                             timesteps=timesteps,
-                                                             concept_id=i,
-                                                             device=latents.device)
-                        else:
-                            _hs = self.get_text_conditioning(input_ids=batch2['input_ids'],
-                                                             timesteps=timesteps,
-                                                             concept_id=i,
-                                                             device=latents.device)
+                        _hs = self.get_text_conditioning(input_ids=batch['input_ids'],
+                                                            timesteps=timesteps,
+                                                            concept_id=i,
+                                                            device=latents.device)
 
                         # Predict the noise residual
                         model_pred = self.unet(noisy_latents, timesteps, _hs).sample

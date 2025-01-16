@@ -54,7 +54,7 @@ class ValidationHandler:
             prompt_image = Image.fromarray(np.concatenate(images, axis=1))
             joined_images.append(prompt_image)
         final_image = Image.fromarray(np.concatenate(joined_images, axis=0))
-        final_image.save(self.cfg.log.exp_dir / f"val-image-{step}.png")
+        final_image.save(self.cfg.log.exp_dir / f"val-image-{step}-concept-{concept_id}.png")
         self.log_with_accelerator(accelerator, joined_images, step=step)
         del pipeline
         torch.cuda.empty_cache()

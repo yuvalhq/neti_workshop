@@ -21,10 +21,10 @@ eval:
   - 421
   - 502
   - 5457
-  validation_steps: 100
+  validation_steps: 200
 log:
   checkpoints_total_limit: null
-  exp_dir: /home/ML_courses/03683533_2024/yoav_yuval_eltar/project/yuval_workspace/neti_workshop/input_configs/cupandlemon/train
+  exp_dir: /home/ML_courses/03683533_2024/yoav_yuval_eltar/project/yuval_workspace/neti_workshop/input_configs/cupandlemon
   exp_name: train
   logging_dir: /home/ML_courses/03683533_2024/yoav_yuval_eltar/project/yuval_workspace/neti_workshop/input_configs/cupandlemon/train/logs
   report_to: tensorboard
