@@ -118,10 +118,17 @@ def run_inference(prompt: str,
                   output_path: Optional[Path] = None,
                   num_images_per_prompt: int = 1,
                   truncation_idx: Optional[int] = None) -> Image.Image:
+    concept_id = 0
+    if constants.CONCEPT_ZERO_PLACEHOLDER in prompt:
+        prompt.replace(constants.CONCEPT_ZERO_PLACEHOLDER, "{}")
+    else:
+        prompt.replace(constants.CONCEPT_ONE_PLACEHOLDER, "{}")
+        concept_id = 1
     with torch.autocast("cuda"):
         with torch.no_grad():
             prompt_embeds = prompt_manager.embed_prompt(prompt,
                                                         num_images_per_prompt=num_images_per_prompt,
+                                                        concept_id=concept_id,
                                                         truncation_idx=truncation_idx)
     joined_images = []
     for seed in seeds:

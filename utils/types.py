@@ -11,6 +11,7 @@ class NeTIBatch:
     placeholder_token_id: int
     timesteps: torch.Tensor
     unet_layers: torch.Tensor
+    concept_id: int
     truncation_idx: Optional[int] = None
 
 
