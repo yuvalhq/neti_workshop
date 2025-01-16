@@ -167,16 +167,17 @@ class Coach:
                                                                embeds_save_name=f"learned_embeds-steps-{global_step}.bin",
                                                                mapper_save_name=f"mapper-steps-{global_step}.pt")
                         if self._should_eval(global_step=global_step):
-                            self.validator.infer(accelerator=self.accelerator,
-                                                 tokenizer=self.tokenizer,
-                                                 text_encoder=self.text_encoder,
-                                                 unet=self.unet,
-                                                 vae=self.vae,
-                                                 concept_id=i,
-                                                 prompts=self.cfg.eval.validation_prompts,
-                                                 num_images_per_prompt=self.cfg.eval.num_validation_images,
-                                                 seeds=self.cfg.eval.validation_seeds,
-                                                 step=global_step)
+                            for infer_concept_id in range(2):
+                                self.validator.infer(accelerator=self.accelerator,
+                                                    tokenizer=self.tokenizer,
+                                                    text_encoder=self.text_encoder,
+                                                    unet=self.unet,
+                                                    vae=self.vae,
+                                                    concept_id=infer_concept_id,
+                                                    prompts=self.cfg.eval.validation_prompts,
+                                                    num_images_per_prompt=self.cfg.eval.num_validation_images,
+                                                    seeds=self.cfg.eval.validation_seeds,
+                                                    step=global_step)
 
                     logs = {"total_loss": loss.detach().item(), "lr": self.lr_scheduler.get_last_lr()[0]}
                     progress_bar.set_postfix(**logs)
