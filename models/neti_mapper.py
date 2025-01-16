@@ -23,7 +23,6 @@ class NeTIMapper(nn.Module):
                  pe_sigmas: PESigmas = PESigmas(sigma_t=0.03, sigma_l=2.0),
                  output_bypass: bool = True,
                  learn_2_concepts: bool = True):
-
         super().__init__()
         self.learn_2_concepts = learn_2_concepts
         self.use_nested_dropout = use_nested_dropout

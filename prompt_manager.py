@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Tuple
 
 import torch
 from tqdm import tqdm
@@ -33,6 +33,7 @@ class PromptManager:
         Compute the conditioning vectors for the given prompt. We assume that the prompt is defined using `{}`
         for indicating where to place the placeholder token string. See constants.VALIDATION_PROMPTS for examples.
         """
+           
         text = text.format(self.placeholder_token)
         ids = self.tokenizer(
             text,

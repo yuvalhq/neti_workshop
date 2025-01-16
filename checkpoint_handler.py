@@ -49,7 +49,7 @@ class CheckpointHandler:
         torch.save(state_dict, self.save_root / save_name)
 
     @staticmethod
-    def load_mapper(mapper_path: Path) -> Tuple[RunConfig, NeTIMapper]:
+    def load_mapper(mapper_path: Path, learn_2_concepts: bool) -> Tuple[RunConfig, NeTIMapper]:
         mapper_ckpt = torch.load(mapper_path, map_location="cpu")
         cfg = pyrallis.decode(RunConfig, mapper_ckpt['cfg'])
         neti_mapper = NeTIMapper(output_dim=768,
@@ -59,7 +59,8 @@ class CheckpointHandler:
                                  use_positional_encoding=cfg.model.use_positional_encoding,
                                  num_pe_time_anchors=cfg.model.num_pe_time_anchors,
                                  pe_sigmas=cfg.model.pe_sigmas,
-                                 output_bypass=cfg.model.output_bypass)
+                                 output_bypass=cfg.model.output_bypass,
+                                 learn_2_concepts=learn_2_concepts)
         neti_mapper.load_state_dict(mapper_ckpt['state_dict'], strict=True)
         encoder = mapper_ckpt['encoder']
         if isinstance(encoder, NeTIPositionalEncoding):

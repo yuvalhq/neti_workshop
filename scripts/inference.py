@@ -76,7 +76,9 @@ class InferenceConfig:
 
 @pyrallis.wrap()
 def main(infer_cfg: InferenceConfig):
-    train_cfg, mapper = CheckpointHandler.load_mapper(infer_cfg.mapper_checkpoint_path)
+    learn_2_concepts = (constants.CONCEPT_ZERO_PLACEHOLDER in infer_cfg.prompts[0] or
+                        constants.CONCEPT_ONE_PLACEHOLDER in infer_cfg.prompts[0])
+    train_cfg, mapper = CheckpointHandler.load_mapper(infer_cfg.mapper_checkpoint_path, learn_2_concepts)
     pipeline, placeholder_token, placeholder_token_id = load_stable_diffusion_model(
         pretrained_model_name_or_path=train_cfg.model.pretrained_model_name_or_path,
         mapper=mapper,
@@ -116,10 +118,17 @@ def run_inference(prompt: str,
                   output_path: Optional[Path] = None,
                   num_images_per_prompt: int = 1,
                   truncation_idx: Optional[int] = None) -> Image.Image:
+    concept_id = 0
+    if constants.CONCEPT_ZERO_PLACEHOLDER in prompt:
+        prompt.replace(constants.CONCEPT_ZERO_PLACEHOLDER, "{}")
+    else:
+        prompt.replace(constants.CONCEPT_ONE_PLACEHOLDER, "{}")
+        concept_id = 1
     with torch.autocast("cuda"):
         with torch.no_grad():
             prompt_embeds = prompt_manager.embed_prompt(prompt,
                                                         num_images_per_prompt=num_images_per_prompt,
+                                                        concept_id=concept_id,
                                                         truncation_idx=truncation_idx)
     joined_images = []
     for seed in seeds:
