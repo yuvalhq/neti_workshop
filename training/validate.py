@@ -31,6 +31,7 @@ class ValidationHandler:
               tokenizer: CLIPTokenizer,
               text_encoder: NeTICLIPTextModel,
               unet: UNet2DConditionModel, vae: AutoencoderKL,
+              concept_id: int,
               prompts: List[str],
               num_images_per_prompt: int,
               seeds: List[int],
@@ -47,6 +48,7 @@ class ValidationHandler:
             images = self.infer_on_prompt(pipeline=pipeline,
                                           prompt_manager=prompt_manager,
                                           prompt=prompt,
+                                          concept_id=concept_id,
                                           num_images_per_prompt=num_images_per_prompt,
                                           seeds=seeds)
             prompt_image = Image.fromarray(np.concatenate(images, axis=1))
@@ -64,9 +66,10 @@ class ValidationHandler:
     def infer_on_prompt(self, pipeline: StableDiffusionPipeline,
                         prompt_manager: PromptManager,
                         prompt: str,
+                        concept_id: int,
                         seeds: List[int],
                         num_images_per_prompt: int = 1) -> List[Image.Image]:
-        prompt_embeds = self.compute_embeddings(prompt_manager=prompt_manager, prompt=prompt)
+        prompt_embeds = self.compute_embeddings(prompt_manager=prompt_manager, prompt=prompt, concept_id=concept_id)
         all_images = []
         for idx in tqdm(range(num_images_per_prompt)):
             generator = torch.Generator(device='cuda').manual_seed(seeds[idx])
@@ -78,10 +81,10 @@ class ValidationHandler:
         return all_images
 
     @staticmethod
-    def compute_embeddings(prompt_manager: PromptManager, prompt: str) -> torch.Tensor:
+    def compute_embeddings(prompt_manager: PromptManager, concept_id: int, prompt: str) -> torch.Tensor:
         with torch.autocast("cuda"):
             with torch.no_grad():
-                prompt_embeds = prompt_manager.embed_prompt(prompt)
+                prompt_embeds = prompt_manager.embed_prompt(prompt, concept_id)
         return prompt_embeds
 
     def load_stable_diffusion_model(self, accelerator: Accelerator,

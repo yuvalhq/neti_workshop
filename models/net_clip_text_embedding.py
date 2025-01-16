@@ -44,6 +44,7 @@ class NeTICLIPTextEmbeddings(nn.Module):
         if batch is not None:
             mapper_outputs = self.mapper(timestep=batch.timesteps.float(),
                                          unet_layer=batch.unet_layers.float(),
+                                         concept_id=batch.concept_id,
                                          truncation_idx=batch.truncation_idx)
             mapper_outputs = mapper_outputs.to(dtype=inputs_embeds.dtype, device=inputs_embeds.device)
             if self.mapper.output_bypass:

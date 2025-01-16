@@ -23,8 +23,8 @@ class NeTIMapper(nn.Module):
                  pe_sigmas: PESigmas = PESigmas(sigma_t=0.03, sigma_l=2.0),
                  output_bypass: bool = True,
                  learn_2_concepts: bool = True):
+
         super().__init__()
-        self.cocept_id = 0
         self.learn_2_concepts = learn_2_concepts
         self.use_nested_dropout = use_nested_dropout
         self.nested_dropout_prob = nested_dropout_prob
@@ -64,24 +64,25 @@ class NeTIMapper(nn.Module):
             input_layer = nn.Identity()
         return input_layer
 
-    def forward(self, timestep: torch.Tensor, unet_layer: torch.Tensor, truncation_idx: int = None) -> torch.Tensor:
-        embedding = self.extract_hidden_representation(timestep, unet_layer)
+    def forward(self, timestep: torch.Tensor, unet_layer: torch.Tensor, concept_id: int,
+                truncation_idx: int = None) -> torch.Tensor:
+        embedding = self.extract_hidden_representation(timestep, unet_layer, concept_id)
         if self.use_nested_dropout:
             embedding = self.apply_nested_dropout(embedding, truncation_idx=truncation_idx)
         embedding = self.get_output(embedding)
         return embedding
 
-    def get_encoded_input(self, timestep: torch.Tensor, unet_layer: torch.Tensor) -> torch.Tensor:
+    def get_encoded_input(self, timestep: torch.Tensor, unet_layer: torch.Tensor, concept_id: int) -> torch.Tensor:
         encoded_input = self.encoder.encode(timestep, unet_layer)
         if self.learn_2_concepts:
-            concept_tensor = torch.tensor([[self.cocept_id] for _ in range(encoded_input.size(0))], device=encoded_input.device)
+            concept_tensor = torch.tensor([[concept_id] for _ in range(encoded_input.size(0))],
+                                          device=encoded_input.device)
             encoded_input = torch.cat((encoded_input, concept_tensor), dim=1)
-            self.cocept_id = 1 if self.cocept_id == 0 else 0
-            # print("concept_id_switch: ", self.cocept_id)
         return encoded_input
 
-    def extract_hidden_representation(self, timestep: torch.Tensor, unet_layer: torch.Tensor) -> torch.Tensor:
-        encoded_input = self.get_encoded_input(timestep, unet_layer)
+    def extract_hidden_representation(self, timestep: torch.Tensor, unet_layer: torch.Tensor,
+                                      concept_id: int) -> torch.Tensor:
+        encoded_input = self.get_encoded_input(timestep, unet_layer, concept_id)
         embedding = self.net(encoded_input)
         return embedding
 

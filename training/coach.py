@@ -47,17 +47,27 @@ class Coach:
         self._set_attn_processor()
 
         # Initialize dataset and dataloader
-        self.train_dataset = self._init_dataset()
-        self.train_dataloader = self._init_dataloader(dataset=self.train_dataset)
+        if self.cfg.model.learn_2_concepts:
+            self.train_dataset_1, self.train_dataset_2 = self._init_datasets()
+            self.train_dataloader_1 = self._init_dataloader(dataset=self.train_dataset_1)
+            self.train_dataloader_2 = self._init_dataloader(dataset=self.train_dataset_2)
+        else:
+            self.train_dataset_1 = self._init_datasets()
+            self.train_dataloader_1 = self._init_dataloader(dataset=self.train_dataset_1)
+        """self.train_dataloader = self._init_dataloader(dataset=self.train_dataset)"""
 
         # Initialize optimizer and scheduler
         self.optimizer = self._init_optimizer()
         self.lr_scheduler = self._init_scheduler(optimizer=self.optimizer)
 
         # Prepare everything with accelerator
-        self.text_encoder, self.optimizer, self.train_dataloader, self.lr_scheduler = self.accelerator.prepare(
-            self.text_encoder, self.optimizer, self.train_dataloader, self.lr_scheduler
-        )
+        if self.cfg.model.learn_2_concepts:
+            self.text_encoder, self.optimizer, self.train_dataloader_1, self.train_dataloader_2, self.lr_scheduler \
+                = self.accelerator.prepare(self.text_encoder, self.optimizer, self.train_dataloader_1,
+                                           self.train_dataloader_2, self.lr_scheduler)
+        else:
+            self.text_encoder, self.optimizer, self.train_dataloader_1, self.lr_scheduler = \
+                self.accelerator.prepare(self.text_encoder, self.optimizer, self.train_dataloader_1, self.lr_scheduler)
 
         # Reconfigure some parameters that we'll need for training
         self.weight_dtype = self._get_weight_dtype()
@@ -75,7 +85,11 @@ class Coach:
     def train(self):
         total_batch_size = self.cfg.optim.train_batch_size * self.accelerator.num_processes * \
                            self.cfg.optim.gradient_accumulation_steps
-        self.logger.log_start_of_training(total_batch_size=total_batch_size, num_samples=len(self.train_dataset))
+        if self.cfg.model.learn_2_concepts:
+            self.logger.log_start_of_training(total_batch_size=total_batch_size,
+                                              num_samples=len(self.train_dataset_1) + len(self.train_dataset_2))
+        else:
+            self.logger.log_start_of_training(total_batch_size=total_batch_size, num_samples=len(self.train_dataset_1))
 
         global_step = self._set_global_step()
         progress_bar = tqdm(range(global_step, self.cfg.optim.max_train_steps),
@@ -83,85 +97,101 @@ class Coach:
         progress_bar.set_description("Steps")
 
         orig_embeds_params = self.accelerator.unwrap_model(self.text_encoder).get_input_embeddings().weight.data.clone()
+
+        if not self.cfg.model.learn_2_concepts:
+            return
+
         while global_step < self.cfg.optim.max_train_steps:
 
             self.text_encoder.train()
-            for step, batch in enumerate(self.train_dataloader):
+            for step, (batch1, batch2) in enumerate(zip(self.train_dataloader_1, self.train_dataloader_2)):
 
-                with self.accelerator.accumulate(self.text_encoder):
+                for i in range(2):
+                    with self.accelerator.accumulate(self.text_encoder):
 
-                    # Convert images to latent space
-                    latent_batch = batch["pixel_values"].to(dtype=self.weight_dtype)
-                    latents = self.vae.encode(latent_batch).latent_dist.sample().detach()
-                    latents = latents * self.vae.config.scaling_factor
+                        # Convert images to latent space
+                        if i % 2 == 0:
+                            latent_batch = batch1["pixel_values"].to(dtype=self.weight_dtype)
+                        else:
+                            latent_batch = batch2["pixel_values"].to(dtype=self.weight_dtype)
+                        latents = self.vae.encode(latent_batch).latent_dist.sample().detach()
+                        latents = latents * self.vae.config.scaling_factor
 
-                    # Sample noise that we'll add to the latents
-                    noise = torch.randn_like(latents)
-                    bsz = latents.shape[0]
-                    timesteps = torch.randint(low=0, high=self.noise_scheduler.config.num_train_timesteps,
-                                              size=(bsz,), device=latents.device)
-                    timesteps = timesteps.long()
+                        # Sample noise that we'll add to the latents
+                        noise = torch.randn_like(latents)
+                        bsz = latents.shape[0]
+                        timesteps = torch.randint(low=0, high=self.noise_scheduler.config.num_train_timesteps,
+                                                  size=(bsz,), device=latents.device)
+                        timesteps = timesteps.long()
 
-                    # Add noise to the latents according to the noise magnitude at each timestep
-                    noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
+                        # Add noise to the latents according to the noise magnitude at each timestep
+                        noisy_latents = self.noise_scheduler.add_noise(latents, noise, timesteps)
 
-                    # Get the text embedding for conditioning
-                    _hs = self.get_text_conditioning(input_ids=batch['input_ids'],
-                                                     timesteps=timesteps,
-                                                     device=latents.device)
+                        # Get the text embedding for conditioning
+                        if i % 2 == 0:
+                            _hs = self.get_text_conditioning(input_ids=batch1['input_ids'],
+                                                             timesteps=timesteps,
+                                                             concept_id=i,
+                                                             device=latents.device)
+                        else:
+                            _hs = self.get_text_conditioning(input_ids=batch2['input_ids'],
+                                                             timesteps=timesteps,
+                                                             concept_id=i,
+                                                             device=latents.device)
 
-                    # Predict the noise residual
-                    model_pred = self.unet(noisy_latents, timesteps, _hs).sample
+                        # Predict the noise residual
+                        model_pred = self.unet(noisy_latents, timesteps, _hs).sample
 
-                    # Get the target for loss depending on the prediction type
-                    if self.noise_scheduler.config.prediction_type == "epsilon":
-                        target = noise
-                    elif self.noise_scheduler.config.prediction_type == "v_prediction":
-                        target = self.noise_scheduler.get_velocity(latents, noise, timesteps)
-                    else:
-                        raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
+                        # Get the target for loss depending on the prediction type
+                        if self.noise_scheduler.config.prediction_type == "epsilon":
+                            target = noise
+                        elif self.noise_scheduler.config.prediction_type == "v_prediction":
+                            target = self.noise_scheduler.get_velocity(latents, noise, timesteps)
+                        else:
+                            raise ValueError(f"Unknown prediction type {self.noise_scheduler.config.prediction_type}")
 
-                    loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
-                    self.accelerator.backward(loss)
+                        loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+                        self.accelerator.backward(loss)
 
-                    self.optimizer.step()
-                    self.lr_scheduler.step()
-                    self.optimizer.zero_grad()
+                        self.optimizer.step()
+                        self.lr_scheduler.step()
+                        self.optimizer.zero_grad()
 
-                    # Let's make sure we don't update any embedding weights besides the newly added token
-                    # This isn't really needed, but we'll keep it for consistency with the original code
-                    index_no_updates = torch.arange(len(self.tokenizer)) != self.placeholder_token_id
-                    with torch.no_grad():
-                        self.accelerator.unwrap_model(self.text_encoder).get_input_embeddings().weight[
-                            index_no_updates] = orig_embeds_params[index_no_updates]
+                        # Let's make sure we don't update any embedding weights besides the newly added token
+                        # This isn't really needed, but we'll keep it for consistency with the original code
+                        index_no_updates = torch.arange(len(self.tokenizer)) != self.placeholder_token_id
+                        with torch.no_grad():
+                            self.accelerator.unwrap_model(self.text_encoder).get_input_embeddings().weight[
+                                index_no_updates] = orig_embeds_params[index_no_updates]
 
-                # Checks if the accelerator has performed an optimization step behind the scenes
-                if self.accelerator.sync_gradients:
-                    progress_bar.update(1)
-                    global_step += 1
-                    self.logger.update_step(step=global_step)
-                    if self._should_save(global_step=global_step):
-                        self.checkpoint_handler.save_model(text_encoder=self.text_encoder,
-                                                           accelerator=self.accelerator,
-                                                           embeds_save_name=f"learned_embeds-steps-{global_step}.bin",
-                                                           mapper_save_name=f"mapper-steps-{global_step}.pt")
-                    if self._should_eval(global_step=global_step):
-                        self.validator.infer(accelerator=self.accelerator,
-                                             tokenizer=self.tokenizer,
-                                             text_encoder=self.text_encoder,
-                                             unet=self.unet,
-                                             vae=self.vae,
-                                             prompts=self.cfg.eval.validation_prompts,
-                                             num_images_per_prompt=self.cfg.eval.num_validation_images,
-                                             seeds=self.cfg.eval.validation_seeds,
-                                             step=global_step)
+                    # Checks if the accelerator has performed an optimization step behind the scenes
+                    if self.accelerator.sync_gradients:
+                        progress_bar.update(1)
+                        global_step += 1
+                        self.logger.update_step(step=global_step)
+                        if self._should_save(global_step=global_step):
+                            self.checkpoint_handler.save_model(text_encoder=self.text_encoder,
+                                                               accelerator=self.accelerator,
+                                                               embeds_save_name=f"learned_embeds-steps-{global_step}.bin",
+                                                               mapper_save_name=f"mapper-steps-{global_step}.pt")
+                        if self._should_eval(global_step=global_step):
+                            self.validator.infer(accelerator=self.accelerator,
+                                                 tokenizer=self.tokenizer,
+                                                 text_encoder=self.text_encoder,
+                                                 unet=self.unet,
+                                                 vae=self.vae,
+                                                 concept_id=i,
+                                                 prompts=self.cfg.eval.validation_prompts,
+                                                 num_images_per_prompt=self.cfg.eval.num_validation_images,
+                                                 seeds=self.cfg.eval.validation_seeds,
+                                                 step=global_step)
 
-                logs = {"total_loss": loss.detach().item(), "lr": self.lr_scheduler.get_last_lr()[0]}
-                progress_bar.set_postfix(**logs)
-                self.accelerator.log(logs, step=global_step)
+                    logs = {"total_loss": loss.detach().item(), "lr": self.lr_scheduler.get_last_lr()[0]}
+                    progress_bar.set_postfix(**logs)
+                    self.accelerator.log(logs, step=global_step)
 
-                if global_step >= self.cfg.optim.max_train_steps:
-                    break
+                    if global_step >= self.cfg.optim.max_train_steps:
+                        break
 
         # Save the final model
         self.accelerator.wait_for_everyone()
@@ -172,7 +202,8 @@ class Coach:
                                                mapper_save_name=f"mapper-final.pt")
         self.accelerator.end_training()
 
-    def get_text_conditioning(self, input_ids: torch.Tensor, timesteps: torch.Tensor, device: torch.device) -> Dict:
+    def get_text_conditioning(self, input_ids: torch.Tensor, timesteps: torch.Tensor, concept_id: int,
+                              device: torch.device) -> Dict:
         """ Compute the text conditioning for the current batch of images using our text encoder over-ride. """
         _hs = {"this_idx": 0}
         for layer_idx, unet_layer in enumerate(UNET_LAYERS):
@@ -180,8 +211,8 @@ class Coach:
                 input_ids=input_ids,
                 placeholder_token_id=self.placeholder_token_id,
                 timesteps=timesteps,
-                unet_layers=torch.tensor(layer_idx, device=device).repeat(timesteps.shape[0])
-            )
+                unet_layers=torch.tensor(layer_idx, device=device).repeat(timesteps.shape[0]),
+                concept_id=concept_id)
             layer_hidden_state, layer_hidden_state_bypass = self.text_encoder(batch=neti_batch)
             layer_hidden_state = layer_hidden_state[0].to(dtype=self.weight_dtype)
             _hs[f"CONTEXT_TENSOR_{layer_idx}"] = layer_hidden_state
@@ -248,7 +279,8 @@ class Coach:
                                      use_positional_encoding=self.cfg.model.use_positional_encoding,
                                      num_pe_time_anchors=self.cfg.model.num_pe_time_anchors,
                                      pe_sigmas=self.cfg.model.pe_sigmas,
-                                     output_bypass=self.cfg.model.output_bypass)
+                                     output_bypass=self.cfg.model.output_bypass,
+                                     learn_2_concepts=self.cfg.model.learn_2_concepts)
         return neti_mapper, loaded_iteration
 
     def _init_sd_models(self):
@@ -309,16 +341,28 @@ class Coach:
     def _set_attn_processor(self):
         self.unet.set_attn_processor(XTIAttenProc())
 
-    def _init_dataset(self) -> TextualInversionDataset:
-        dataset = TextualInversionDataset(data_root=self.cfg.data.train_data_dir,
-                                          tokenizer=self.tokenizer,
-                                          size=self.cfg.data.resolution,
-                                          placeholder_token=self.cfg.data.placeholder_token,
-                                          repeats=self.cfg.data.repeats,
-                                          learnable_property=self.cfg.data.learnable_property,
-                                          center_crop=self.cfg.data.center_crop,
-                                          set="train")
-        return dataset
+    def _init_datasets(self):
+        dataset_1 = TextualInversionDataset(data_root=self.cfg.data.train_data_dir_1,
+                                            tokenizer=self.tokenizer,
+                                            size=self.cfg.data.resolution,
+                                            placeholder_token=self.cfg.data.placeholder_token,
+                                            repeats=self.cfg.data.repeats,
+                                            learnable_property=self.cfg.data.learnable_property,
+                                            center_crop=self.cfg.data.center_crop,
+                                            set="train")
+
+        if self.cfg.model.learn_2_concepts:
+            dataset_2 = TextualInversionDataset(data_root=self.cfg.data.train_data_dir_2,
+                                                tokenizer=self.tokenizer,
+                                                size=self.cfg.data.resolution,
+                                                placeholder_token=self.cfg.data.placeholder_token,
+                                                repeats=self.cfg.data.repeats,
+                                                learnable_property=self.cfg.data.learnable_property,
+                                                center_crop=self.cfg.data.center_crop,
+                                                set="train")
+            return dataset_1, dataset_2
+
+        return dataset_1
 
     def _init_dataloader(self, dataset: Dataset) -> torch.utils.data.DataLoader:
         dataloader = torch.utils.data.DataLoader(dataset,

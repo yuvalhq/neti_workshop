@@ -28,8 +28,10 @@ class LogConfig:
 @dataclass
 class DataConfig:
     """ Parameters for data """
-    # A folder containing the training data
-    train_data_dir: Path
+    # A folder containing the training data of concept 1
+    train_data_dir_1: Path
+    # A folder containing the training data of concept 2
+    train_data_dir_2: Path
     # A token to use as a placeholder for the concept
     placeholder_token: str
     # Super category token to use for normalizing the mapper output
@@ -71,6 +73,8 @@ class ModelConfig:
     revision: Optional[str] = None
     # Whether training should be resumed from a previous checkpoint.
     mapper_checkpoint_path: Optional[Path] = None
+    # Whether to learn one or two concepts
+    learn_2_concepts: bool = True
 
     def __post_init__(self):
         if self.pe_sigmas is not None:

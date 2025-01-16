@@ -26,7 +26,7 @@ class PromptManager:
         self.placeholder_token_id = placeholder_token_id
         self.dtype = torch_dtype
 
-    def embed_prompt(self, text: str,
+    def embed_prompt(self, text: str, concept_id: int,
                      truncation_idx: Optional[int] = None,
                      num_images_per_prompt: int = 1) -> List[Dict[str, Any]]:
         """
@@ -51,6 +51,7 @@ class PromptManager:
                                   timesteps=timestep.unsqueeze(0).to(device=self.text_encoder.device),
                                   unet_layers=torch.tensor(layer_idx, device=self.text_encoder.device).unsqueeze(0),
                                   placeholder_token_id=self.placeholder_token_id,
+                                  concept_id=concept_id,
                                   truncation_idx=truncation_idx)
                 layer_hs, layer_hs_bypass = self.text_encoder(batch=batch)
                 layer_hs = layer_hs[0].to(dtype=self.dtype)
