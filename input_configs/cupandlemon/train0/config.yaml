@@ -21,7 +21,7 @@ eval:
   - 421
   - 502
   - 5457
-  validation_steps: 200
+  validation_steps: 500
 log:
   checkpoints_total_limit: null
   exp_dir: /home/ML_courses/03683533_2024/yoav_yuval_eltar/project/yuval_workspace/neti_workshop/input_configs/cupandlemon/train
@@ -55,7 +55,7 @@ optim:
   learning_rate: 0.001
   lr_scheduler: constant
   lr_warmup_steps: 0
-  max_train_steps: 1000
+  max_train_steps: 2000
   mixed_precision: 'no'
   scale_lr: true
   seed: null

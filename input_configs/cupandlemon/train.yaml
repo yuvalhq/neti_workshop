@@ -21,7 +21,7 @@ eval:
   - 421
   - 502
   - 5457
-  validation_steps: 500
+  validation_steps: 1000
 log:
   checkpoints_total_limit: null
   exp_dir: /home/ML_courses/03683533_2024/yoav_yuval_eltar/project/yuval_workspace/neti_workshop/input_configs/cupandlemon

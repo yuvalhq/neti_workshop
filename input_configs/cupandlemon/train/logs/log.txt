@@ -1,4 +1,4 @@
-2025-01-16 19:48:39 
+2025-01-17 08:54:52 
 data:
   center_crop: false
   dataloader_num_workers: 8
@@ -22,7 +22,7 @@ eval:
   - 421
   - 502
   - 5457
-  validation_steps: 500
+  validation_steps: 1000
 log:
   checkpoints_total_limit: null
   exp_dir: /home/ML_courses/03683533_2024/yoav_yuval_eltar/project/yuval_workspace/neti_workshop/input_configs/cupandlemon/train
@@ -62,7 +62,7 @@ optim:
   seed: null
   train_batch_size: 2
 
-2025-01-16 19:48:39 Distributed environment: NO
+2025-01-17 08:54:52 Distributed environment: NO
 Num processes: 1
 Process index: 0
 Local process index: 0
@@ -70,9 +70,9 @@ Device: cuda
 
 Mixed precision type: no
 
-2025-01-16 19:48:48 ***** Running training *****
-2025-01-16 19:48:48   Num examples = 1400
-2025-01-16 19:48:48   Instantaneous batch size per device = 2
-2025-01-16 19:48:48   Total train batch size (w. parallel, distributed & accumulation) = 8
-2025-01-16 19:48:48   Gradient Accumulation steps = 4
-2025-01-16 19:48:48   Total optimization steps = 2000
+2025-01-17 08:55:04 ***** Running training *****
+2025-01-17 08:55:04   Num examples = 1400
+2025-01-17 08:55:04   Instantaneous batch size per device = 2
+2025-01-17 08:55:04   Total train batch size (w. parallel, distributed & accumulation) = 8
+2025-01-17 08:55:04   Gradient Accumulation steps = 4
+2025-01-17 08:55:04   Total optimization steps = 2000

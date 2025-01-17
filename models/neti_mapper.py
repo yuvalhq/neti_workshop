@@ -5,7 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from constants import UNET_LAYERS, CONCEPT_ID_LEN
+from constants import UNET_LAYERS, CONCEPT_ID_LEN, CONCEPT_WEIGHT
 from models.positional_encoding import NeTIPositionalEncoding, BasicEncoder
 from utils.types import PESigmas
 
@@ -74,7 +74,8 @@ class NeTIMapper(nn.Module):
     def get_encoded_input(self, timestep: torch.Tensor, unet_layer: torch.Tensor, concept_id: int) -> torch.Tensor:
         encoded_input = self.encoder.encode(timestep, unet_layer)
         if self.learn_2_concepts:
-            concept_tensor = torch.tensor([[concept_id for _ in range(CONCEPT_ID_LEN)] for _ in range(encoded_input.size(0))],
+            concept_id_weight = -CONCEPT_WEIGHT if concept_id == 0 else CONCEPT_WEIGHT
+            concept_tensor = torch.tensor([[concept_id_weight for _ in range(CONCEPT_ID_LEN)] for _ in range(encoded_input.size(0))],
                                           device=encoded_input.device)
             encoded_input = torch.cat((encoded_input, concept_tensor), dim=1)
         return encoded_input
