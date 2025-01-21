@@ -93,11 +93,18 @@ def main(infer_cfg: InferenceConfig):
                                    placeholder_token_id=placeholder_token_id,
                                    torch_dtype=infer_cfg.torch_dtype)
     for prompt in infer_cfg.prompts:
+        concept_id = 0
+        if constants.CONCEPT_ZERO_PLACEHOLDER in prompt:
+            prompt = prompt.replace(constants.CONCEPT_ZERO_PLACEHOLDER, "{}")
+        else:
+            prompt = prompt.replace(constants.CONCEPT_ONE_PLACEHOLDER, "{}")
+            concept_id = 1
         output_path = infer_cfg.inference_dir / prompt.format(placeholder_token)
         output_path.mkdir(exist_ok=True, parents=True)
         for truncation_idx in infer_cfg.truncation_idxs:
             print(f"Running with truncation index: {truncation_idx}")
             prompt_image = run_inference(prompt=prompt,
+                                         concept_id=concept_id,
                                          pipeline=pipeline,
                                          prompt_manager=prompt_manager,
                                          seeds=infer_cfg.seeds,
@@ -105,25 +112,20 @@ def main(infer_cfg: InferenceConfig):
                                          num_images_per_prompt=1,
                                          truncation_idx=truncation_idx)
             if truncation_idx is not None:
-                save_name = f"{prompt.format(placeholder_token)}_truncation_{truncation_idx}.png"
+                save_name = f"{prompt.format(placeholder_token)}_truncation_{truncation_idx}_concept_{concept_id}.png"
             else:
-                save_name = f"{prompt.format(placeholder_token)}.png"
+                save_name = f"{prompt.format(placeholder_token)}_concept_{concept_id}.png"
             prompt_image.save(infer_cfg.inference_dir / save_name)
 
 
 def run_inference(prompt: str,
+                  concept_id: int,
                   pipeline: StableDiffusionPipeline,
                   prompt_manager: PromptManager,
                   seeds: List[int],
                   output_path: Optional[Path] = None,
                   num_images_per_prompt: int = 1,
                   truncation_idx: Optional[int] = None) -> Image.Image:
-    concept_id = 0
-    if constants.CONCEPT_ZERO_PLACEHOLDER in prompt:
-        prompt.replace(constants.CONCEPT_ZERO_PLACEHOLDER, "{}")
-    else:
-        prompt.replace(constants.CONCEPT_ONE_PLACEHOLDER, "{}")
-        concept_id = 1
     with torch.autocast("cuda"):
         with torch.no_grad():
             prompt_embeds = prompt_manager.embed_prompt(prompt,
