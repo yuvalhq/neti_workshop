@@ -127,9 +127,9 @@ class Coach:
 
                         # Get the text embedding for conditioning
                         _hs = self.get_text_conditioning(input_ids=batch['input_ids'],
-                                                            timesteps=timesteps,
-                                                            concept_id=i,
-                                                            device=latents.device)
+                                                         timesteps=timesteps,
+                                                         concept_id=i,
+                                                         device=latents.device)
 
                         # Predict the noise residual
                         model_pred = self.unet(noisy_latents, timesteps, _hs).sample
@@ -169,15 +169,15 @@ class Coach:
                         if self._should_eval(global_step=global_step):
                             for infer_concept_id in range(2):
                                 self.validator.infer(accelerator=self.accelerator,
-                                                    tokenizer=self.tokenizer,
-                                                    text_encoder=self.text_encoder,
-                                                    unet=self.unet,
-                                                    vae=self.vae,
-                                                    concept_id=infer_concept_id,
-                                                    prompts=self.cfg.eval.validation_prompts,
-                                                    num_images_per_prompt=self.cfg.eval.num_validation_images,
-                                                    seeds=self.cfg.eval.validation_seeds,
-                                                    step=global_step)
+                                                     tokenizer=self.tokenizer,
+                                                     text_encoder=self.text_encoder,
+                                                     unet=self.unet,
+                                                     vae=self.vae,
+                                                     concept_id=infer_concept_id,
+                                                     prompts=self.cfg.eval.validation_prompts,
+                                                     num_images_per_prompt=self.cfg.eval.num_validation_images,
+                                                     seeds=self.cfg.eval.validation_seeds,
+                                                     step=global_step)
 
                     logs = {"total_loss": loss.detach().item(), "lr": self.lr_scheduler.get_last_lr()[0]}
                     progress_bar.set_postfix(**logs)
@@ -205,7 +205,8 @@ class Coach:
                 placeholder_token_id=self.placeholder_token_id,
                 timesteps=timesteps,
                 unet_layers=torch.tensor(layer_idx, device=device).repeat(timesteps.shape[0]),
-                concept_id=concept_id)
+                concept_id=concept_id,
+                truncation_idx=self.cfg.model.truncation_idx)
             layer_hidden_state, layer_hidden_state_bypass = self.text_encoder(batch=neti_batch)
             layer_hidden_state = layer_hidden_state[0].to(dtype=self.weight_dtype)
             _hs[f"CONTEXT_TENSOR_{layer_idx}"] = layer_hidden_state
