@@ -1,4 +1,5 @@
 from typing import Any, Callable, Dict, List, Optional, Union
+from constants import USE_SAFETY_CHECKER
 
 import torch
 from diffusers.pipelines.stable_diffusion import StableDiffusionPipelineOutput, StableDiffusionPipeline
@@ -105,6 +106,7 @@ def sd_pipeline_call(
                 if callback is not None and i % callback_steps == 0:
                     callback(i, t, latents)
 
+    has_nsfw_concept = False
     if output_type == "latent":
         image = latents
         has_nsfw_concept = None
@@ -112,14 +114,16 @@ def sd_pipeline_call(
         # 8. Post-processing
         image = pipeline.decode_latents(latents)
         # 9. Run safety checker
-        image, has_nsfw_concept = pipeline.run_safety_checker(image, device, pipeline.text_encoder.dtype)
+        if USE_SAFETY_CHECKER:
+            image, has_nsfw_concept = pipeline.run_safety_checker(image, device, pipeline.text_encoder.dtype)
         # 10. Convert to PIL
         image = pipeline.numpy_to_pil(image)
     else:
         # 8. Post-processing
         image = pipeline.decode_latents(latents)
         # 9. Run safety checker
-        image, has_nsfw_concept = pipeline.run_safety_checker(image, device, pipeline.text_encoder.dtype)
+        if USE_SAFETY_CHECKER:
+            image, has_nsfw_concept = pipeline.run_safety_checker(image, device, pipeline.text_encoder.dtype)
 
     # Offload last model to CPU
     if hasattr(pipeline, "final_offload_hook") and pipeline.final_offload_hook is not None:

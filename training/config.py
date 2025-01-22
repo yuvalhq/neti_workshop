@@ -58,7 +58,7 @@ class ModelConfig:
     # Probability to apply nested dropout during training
     nested_dropout_prob: float = 0.5
     # truncation index using in nested dropout
-    truncation_idx: int = None
+    truncation_idx: Optional[int] = None
     # Whether to normalize the norm of the mapper's output vector
     normalize_mapper_output: bool = True
     # Target norm for the mapper's output vector

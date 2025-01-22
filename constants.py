@@ -86,3 +86,5 @@ CONCEPT_WEIGHT = 1 # 0.0312 is max abs value of all other weights
 CONCEPT_ID_LEN = 2
 CONCEPT_ZERO_PLACEHOLDER = "{0}"
 CONCEPT_ONE_PLACEHOLDER = "{1}"
+
+USE_SAFETY_CHECKER = False
