@@ -106,7 +106,7 @@ def sd_pipeline_call(
                 if callback is not None and i % callback_steps == 0:
                     callback(i, t, latents)
 
-    has_nsfw_concept = False
+    has_nsfw_concept = None
     if output_type == "latent":
         image = latents
         has_nsfw_concept = None
