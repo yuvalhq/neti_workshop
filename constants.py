@@ -82,7 +82,7 @@ IMAGENET_STYLE_TEMPLATES_SMALL = [
     "a large painting in the style of {}",
 ]
 
-CONCEPT_WEIGHT = 0.0936 # 0.0312 is max abs value of all other weights
+CONCEPT_WEIGHT = 0.312 # 0.0312 is max abs value of all other weights
 CONCEPT_ID_LEN = 1
 CONCEPT_ZERO_PLACEHOLDER = "{0}"
 CONCEPT_ONE_PLACEHOLDER = "{1}"
